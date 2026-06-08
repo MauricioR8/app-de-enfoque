@@ -11,6 +11,8 @@ import com.mauricior8.enfoque.data.model.IconMode
 import com.mauricior8.enfoque.data.model.OasisBoard
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "enfoque_prefs")

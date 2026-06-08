@@ -14,6 +14,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
@@ -183,6 +184,7 @@ private sealed class Overlay {
     data class Note(val widgetId: String, val page: Int) : Overlay()
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EnfoqueRoot(
     uiState: com.mauricior8.enfoque.ui.EnfoqueUiState,
