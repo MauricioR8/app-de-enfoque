@@ -73,7 +73,7 @@ fun OasisScreen(
         ) {
             TabLabel("Widgets", selectedTab == 0) { selectedTab = 0 }
             Text(" | ", color = colors.secondaryContent)
-            TabLabel("Oasis", selectedTab == 1) { selectedTab = 1 }
+            TabLabel("Squares", selectedTab == 1) { selectedTab = 1 }
         }
 
         if (selectedTab == 0) {
@@ -152,6 +152,10 @@ private fun WidgetDispatcher(
         WidgetType.TIME_PROGRESS -> TimeProgressWidget(config, onChange, onRemove)
         WidgetType.MINI_GAME -> MiniGameWidget(config, onChange, onRemove)
         WidgetType.CUSTOM -> CustomWidget(config, onChange, onRemove)
+        WidgetType.APP_USAGE -> AppUsageWidget(config, onChange, onRemove)
+        WidgetType.QUOTES -> QuotesWidget(config, onChange, onRemove)
+        WidgetType.JOKES -> JokesWidget(config, onChange, onRemove)
+        WidgetType.MUSIC -> MusicWidget(config, onRemove)
     }
 }
 
@@ -165,7 +169,7 @@ private fun WidgetsCatalogTab(onAddWidget: (WidgetType) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            "Añade módulos a tu pantalla Oasis. Todas las funciones están desbloqueadas.",
+            "Añade módulos a tu pantalla Squares. Todas las funciones están desbloqueadas. (Los widgets nativos de otras apps llegan en la próxima versión.)",
             color = colors.secondaryContent,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -219,9 +223,13 @@ private fun AddWidgetDialog(onDismiss: () -> Unit, onPick: (WidgetType) -> Unit)
 private fun widgetCatalog(): List<Triple<WidgetType, String, String>> = listOf(
     Triple(WidgetType.TODO, "Por hacer", "Lista de tareas con casillas de verificación."),
     Triple(WidgetType.NOTES, "Notas", "Varias notas rápidas con paginación."),
-    Triple(WidgetType.CALENDAR, "Calendario", "Eventos del día con hora y título."),
-    Triple(WidgetType.POMODORO, "Temporizador Pomodoro", "Enfoque, pausa corta y pausa larga."),
+    Triple(WidgetType.CALENDAR, "Calendario", "Eventos del día (conecta Google/Samsung)."),
+    Triple(WidgetType.POMODORO, "Temporizador Pomodoro", "Duraciones editables y alarma."),
     Triple(WidgetType.TIME_PROGRESS, "Progreso del Tiempo", "Año, mes, semana y día."),
-    Triple(WidgetType.MINI_GAME, "Mini-juego", "Agilidad mental: 2048 y más."),
+    Triple(WidgetType.APP_USAGE, "Uso de la App", "Tiempo en pantalla y aperturas (24h / 7 días)."),
+    Triple(WidgetType.MUSIC, "Música", "Lo que suena ahora (Samsung Music, etc.)."),
+    Triple(WidgetType.QUOTES, "Frases", "Tus frases favoritas."),
+    Triple(WidgetType.JOKES, "Chistes", "Tus chistes, uno a uno."),
+    Triple(WidgetType.MINI_GAME, "Minijuegos", "2048, Serpiente, Ladrillos y Trivia."),
     Triple(WidgetType.CUSTOM, "Módulo personalizado", "Una tarjeta 100% personalizable."),
 )

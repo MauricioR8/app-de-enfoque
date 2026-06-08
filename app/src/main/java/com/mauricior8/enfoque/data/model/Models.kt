@@ -115,7 +115,18 @@ enum class WidgetType {
     TIME_PROGRESS,
     MINI_GAME,
     CUSTOM,
+    APP_USAGE,
+    QUOTES,
+    JOKES,
+    MUSIC,
 }
+
+@Serializable
+data class TriviaItem(
+    val id: String = UUID.randomUUID().toString(),
+    val question: String = "",
+    val answer: String = "",
+)
 
 @Serializable
 data class TodoItem(
@@ -167,6 +178,7 @@ data class WidgetConfig(
     val pomodoroFocus: Int = 25,
     val pomodoroShortBreak: Int = 5,
     val pomodoroLongBreak: Int = 15,
+    val pomodoroAlarm: Boolean = true,
 
     // TIME_PROGRESS payload: which spans to show
     val showYear: Boolean = true,
@@ -174,8 +186,19 @@ data class WidgetConfig(
     val showWeek: Boolean = true,
     val showDay: Boolean = true,
 
+    // TODO options
+    val hideCompleted: Boolean = false,
+
     // MINI_GAME payload
     val game: MiniGameType = MiniGameType.GAME_2048,
+    val trivia: List<TriviaItem> = emptyList(),
+
+    // APP_USAGE payload: window in days (1 = last 24h, 7 = last week)
+    val usageWindowDays: Int = 1,
+
+    // QUOTES / JOKES payload (user supplied lines)
+    val quotes: List<String> = emptyList(),
+    val jokes: List<String> = emptyList(),
 
     // CUSTOM payload: free text body (e.g. "Ejercicio diario de ajedrez")
     val customBody: String = "",

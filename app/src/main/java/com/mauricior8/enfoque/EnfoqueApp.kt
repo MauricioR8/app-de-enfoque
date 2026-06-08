@@ -24,4 +24,6 @@ class AppContainer(app: Application) {
     val preferences = PreferencesManager(app)
     val appRepository = AppRepository(app)
     val webShortcutStore = WebShortcutStore(app)
+    val usageStatsRepository = com.mauricior8.enfoque.data.UsageStatsRepository(app)
+    val calendarRepository = com.mauricior8.enfoque.data.CalendarRepository(app)
 }

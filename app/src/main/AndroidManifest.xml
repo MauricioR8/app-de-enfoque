@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Read events from the device calendar (Google/Samsung accounts) -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
     <!-- Expand the status bar / allow setting wallpaper info if needed -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 
@@ -48,6 +51,18 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Notification listener used only to read the active media session
+             (now playing) for the Music square. The user must enable it. -->
+        <service
+            android:name=".data.media.EnfoqueNotificationListener"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

@@ -421,6 +421,10 @@ private fun defaultTitle(type: WidgetType): String = when (type) {
     WidgetType.CALENDAR -> "Calendario"
     WidgetType.POMODORO -> "Temporizador Pomodoro"
     WidgetType.TIME_PROGRESS -> "Progreso del Tiempo"
-    WidgetType.MINI_GAME -> "Mini-juego"
+    WidgetType.MINI_GAME -> "Minijuegos"
+    WidgetType.APP_USAGE -> "Uso de la App"
+    WidgetType.MUSIC -> "Música"
+    WidgetType.QUOTES -> "Frases"
+    WidgetType.JOKES -> "Chistes"
     WidgetType.CUSTOM -> ""
 }
