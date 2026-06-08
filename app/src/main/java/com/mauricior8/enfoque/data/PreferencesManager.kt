@@ -3,6 +3,7 @@ package com.mauricior8.enfoque.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -34,6 +35,10 @@ class PreferencesManager(private val context: Context) {
         val LAUNCHER_NAME = stringPreferencesKey("launcher_name")
         val HOME_LAYOUT = stringPreferencesKey("home_layout_json")
         val OASIS_BOARD = stringPreferencesKey("oasis_board_json")
+        val CLOCK_24H = booleanPreferencesKey("clock_24h")
+        val SHOW_SECONDS = booleanPreferencesKey("show_seconds")
+        val ARC_BATTERY = booleanPreferencesKey("arc_battery")
+        val SHOW_RECENT = booleanPreferencesKey("show_recent")
     }
 
     /* ------------------------- Icon mode ------------------------- */
@@ -62,11 +67,34 @@ class PreferencesManager(private val context: Context) {
     /* ------------------------- Launcher name ------------------------- */
 
     val launcherName: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[Keys.LAUNCHER_NAME] ?: "Oasis"
+        prefs[Keys.LAUNCHER_NAME] ?: "Enfoque"
     }
 
     suspend fun setLauncherName(name: String) {
         context.dataStore.edit { it[Keys.LAUNCHER_NAME] = name }
+    }
+
+    /* ------------------------- Clock & display settings ------------------------- */
+
+    val clock24h: Flow<Boolean> = context.dataStore.data.map { it[Keys.CLOCK_24H] ?: true }
+    suspend fun setClock24h(value: Boolean) {
+        context.dataStore.edit { it[Keys.CLOCK_24H] = value }
+    }
+
+    val showSeconds: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_SECONDS] ?: false }
+    suspend fun setShowSeconds(value: Boolean) {
+        context.dataStore.edit { it[Keys.SHOW_SECONDS] = value }
+    }
+
+    /** When true the clock arc represents the battery level (depletes as it drops). */
+    val arcBattery: Flow<Boolean> = context.dataStore.data.map { it[Keys.ARC_BATTERY] ?: true }
+    suspend fun setArcBattery(value: Boolean) {
+        context.dataStore.edit { it[Keys.ARC_BATTERY] = value }
+    }
+
+    val showRecentApps: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_RECENT] ?: true }
+    suspend fun setShowRecentApps(value: Boolean) {
+        context.dataStore.edit { it[Keys.SHOW_RECENT] = value }
     }
 
     /* ------------------------- Home layout ------------------------- */

@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -68,10 +69,15 @@ fun PillButton(
 }
 
 /** Convenience for a transparent clickable area with no ripple bleed. */
-fun Modifier.tappable(onClick: () -> Unit): Modifier = this.clickable(
-    indication = null,
-    interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource(),
-    onClick = onClick,
-)
+fun Modifier.tappable(onClick: () -> Unit): Modifier = this.composed {
+    val interactionSource = androidx.compose.runtime.remember {
+        androidx.compose.foundation.interaction.MutableInteractionSource()
+    }
+    clickable(
+        indication = null,
+        interactionSource = interactionSource,
+        onClick = onClick,
+    )
+}
 
 internal val TransparentColor = Color.Transparent

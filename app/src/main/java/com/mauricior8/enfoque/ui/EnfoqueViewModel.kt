@@ -30,9 +30,13 @@ import kotlinx.coroutines.launch
 data class EnfoqueUiState(
     val iconMode: IconMode = IconMode.COLOR,
     val backgroundColorId: String = "black",
-    val launcherName: String = "Oasis",
+    val launcherName: String = "Enfoque",
     val homeLayout: HomeLayout = HomeLayout(),
     val oasisBoard: OasisBoard = OasisBoard(),
+    val clock24h: Boolean = true,
+    val showSeconds: Boolean = false,
+    val arcBattery: Boolean = true,
+    val showRecentApps: Boolean = true,
 ) {
     val backgroundColor get() = BackgroundPalette.fromId(backgroundColorId).color
     val isDarkBackground get() = backgroundColor.luminance() < 0.5f
@@ -45,14 +49,48 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs: PreferencesManager = container.preferences
     private val appRepository: AppRepository = container.appRepository
 
-    val uiState: StateFlow<EnfoqueUiState> = combine(
+    private data class CorePrefs(
+        val iconMode: IconMode,
+        val bgId: String,
+        val name: String,
+        val home: HomeLayout,
+        val board: OasisBoard,
+    )
+
+    private data class DisplayPrefs(
+        val clock24h: Boolean,
+        val showSeconds: Boolean,
+        val arcBattery: Boolean,
+        val showRecent: Boolean,
+    )
+
+    private val coreFlow = combine(
         prefs.iconMode,
         prefs.backgroundColorId,
         prefs.launcherName,
         prefs.homeLayout,
         prefs.oasisBoard,
-    ) { iconMode, bgId, name, home, board ->
-        EnfoqueUiState(iconMode, bgId, name, home, board)
+    ) { iconMode, bgId, name, home, board -> CorePrefs(iconMode, bgId, name, home, board) }
+
+    private val displayFlow = combine(
+        prefs.clock24h,
+        prefs.showSeconds,
+        prefs.arcBattery,
+        prefs.showRecentApps,
+    ) { c24, secs, arc, recent -> DisplayPrefs(c24, secs, arc, recent) }
+
+    val uiState: StateFlow<EnfoqueUiState> = combine(coreFlow, displayFlow) { core, display ->
+        EnfoqueUiState(
+            iconMode = core.iconMode,
+            backgroundColorId = core.bgId,
+            launcherName = core.name,
+            homeLayout = core.home,
+            oasisBoard = core.board,
+            clock24h = display.clock24h,
+            showSeconds = display.showSeconds,
+            arcBattery = display.arcBattery,
+            showRecentApps = display.showRecent,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EnfoqueUiState())
 
     /** Loaded launchable items (apps + web shortcuts), re-rendered for current theme. */
@@ -62,13 +100,11 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading
 
-    /** Reloads the app/shortcut list using the current icon mode + background. */
-    fun reloadItems(iconMode: IconMode, backgroundColorId: String) {
+    /** Reloads the app/shortcut list using the current icon mode. */
+    fun reloadItems(iconMode: IconMode) {
         viewModelScope.launch {
             _loading.value = true
-            val bg = BackgroundPalette.fromId(backgroundColorId).color
-            val tint = (if (bg.luminance() < 0.5f) PureWhite else PureBlack).toArgb()
-            _items.value = appRepository.loadItems(iconMode, tint)
+            _items.value = appRepository.loadItems(iconMode)
             _loading.value = false
         }
     }
@@ -82,6 +118,10 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     fun setIconMode(mode: IconMode) = viewModelScope.launch { prefs.setIconMode(mode) }
     fun setBackgroundColorId(id: String) = viewModelScope.launch { prefs.setBackgroundColorId(id) }
     fun setLauncherName(name: String) = viewModelScope.launch { prefs.setLauncherName(name) }
+    fun setClock24h(value: Boolean) = viewModelScope.launch { prefs.setClock24h(value) }
+    fun setShowSeconds(value: Boolean) = viewModelScope.launch { prefs.setShowSeconds(value) }
+    fun setArcBattery(value: Boolean) = viewModelScope.launch { prefs.setArcBattery(value) }
+    fun setShowRecentApps(value: Boolean) = viewModelScope.launch { prefs.setShowRecentApps(value) }
 
     /* ----------------------- Home layout actions ----------------------- */
 

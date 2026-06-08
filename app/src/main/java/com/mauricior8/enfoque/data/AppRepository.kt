@@ -21,17 +21,16 @@ class AppRepository(private val context: Context) {
     private val webStore = WebShortcutStore(context)
 
     /**
-     * @param iconMode how to render icons.
-     * @param monoTint the tint color (ARGB int) used in BLACK_AND_WHITE mode.
+     * @param iconMode how to render icons (color or grayscale).
      */
-    suspend fun loadItems(iconMode: IconMode, monoTint: Int): List<LaunchableItem> =
+    suspend fun loadItems(iconMode: IconMode): List<LaunchableItem> =
         withContext(Dispatchers.IO) {
-            val apps = loadInstalledApps(iconMode, monoTint)
-            val web = loadWebShortcuts(iconMode, monoTint)
+            val apps = loadInstalledApps(iconMode)
+            val web = loadWebShortcuts(iconMode)
             (apps + web).sortedBy { it.sortKey.lowercase() }
         }
 
-    private fun loadInstalledApps(iconMode: IconMode, monoTint: Int): List<LaunchableItem> {
+    private fun loadInstalledApps(iconMode: IconMode): List<LaunchableItem> {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolveInfos = pm.queryIntentActivities(intent, 0)
         val myPackage = context.packageName
@@ -44,7 +43,7 @@ class AppRepository(private val context: Context) {
 
             val label = info.loadLabel(pm)?.toString().orEmpty()
             val rawIcon = runCatching { info.loadIcon(pm) }.getOrNull()
-            val icon = renderIcon(rawIcon, iconMode, monoTint)
+            val icon = renderIcon(rawIcon, iconMode)
             val firstInstall = runCatching {
                 pm.getPackageInfo(packageName, 0).firstInstallTime
             }.getOrDefault(0L)
@@ -61,7 +60,7 @@ class AppRepository(private val context: Context) {
         }
     }
 
-    private fun loadWebShortcuts(iconMode: IconMode, monoTint: Int): List<LaunchableItem> {
+    private fun loadWebShortcuts(iconMode: IconMode): List<LaunchableItem> {
         return webStore.all().map { ws ->
             val rawIcon = ws.iconPath?.let { path ->
                 runCatching { android.graphics.drawable.Drawable.createFromPath(path) }.getOrNull()
@@ -69,7 +68,7 @@ class AppRepository(private val context: Context) {
             LaunchableItem(
                 key = "web/${ws.id}",
                 label = ws.label,
-                icon = rawIcon?.let { renderIcon(it, iconMode, monoTint) },
+                icon = rawIcon?.let { renderIcon(it, iconMode) },
                 type = LaunchableItem.Type.WEB_SHORTCUT,
                 url = ws.url,
                 firstInstallTime = ws.addedAt,
@@ -80,12 +79,11 @@ class AppRepository(private val context: Context) {
     private fun renderIcon(
         raw: android.graphics.drawable.Drawable?,
         iconMode: IconMode,
-        monoTint: Int,
     ): android.graphics.drawable.Drawable? {
         if (raw == null) return null
         return when (iconMode) {
             IconMode.COLOR -> raw
-            IconMode.BLACK_AND_WHITE -> IconUtils.toMonochrome(raw, monoTint, context.resources)
+            IconMode.BLACK_AND_WHITE -> IconUtils.toGrayscale(raw, context.resources)
         }
     }
 

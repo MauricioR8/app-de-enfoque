@@ -39,9 +39,11 @@ import com.mauricior8.enfoque.ui.EnfoqueViewModel
 import com.mauricior8.enfoque.ui.drawer.AppDrawerScreen
 import com.mauricior8.enfoque.ui.drawer.DrawerItemAction
 import com.mauricior8.enfoque.ui.folder.FolderEditorDialog
+import com.mauricior8.enfoque.ui.folder.FolderViewDialog
 import com.mauricior8.enfoque.ui.home.HomeScreen
 import com.mauricior8.enfoque.ui.oasis.NoteFullScreen
 import com.mauricior8.enfoque.ui.oasis.OasisScreen
+import com.mauricior8.enfoque.ui.settings.ClockSettingsDialog
 import com.mauricior8.enfoque.ui.settings.SettingsScreen
 import com.mauricior8.enfoque.ui.theme.AppDeEnfoqueTheme
 import kotlinx.coroutines.Dispatchers
@@ -64,9 +66,9 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsState()
             val items by viewModel.items.collectAsState()
 
-            // Re-render icons whenever the icon mode or background changes.
-            LaunchedEffect(uiState.iconMode, uiState.backgroundColorId) {
-                viewModel.reloadItems(uiState.iconMode, uiState.backgroundColorId)
+            // Re-render icons whenever the icon mode changes.
+            LaunchedEffect(uiState.iconMode) {
+                viewModel.reloadItems(uiState.iconMode)
             }
 
             AppDeEnfoqueTheme(backgroundColor = uiState.backgroundColor) {
@@ -110,7 +112,7 @@ class MainActivity : ComponentActivity() {
         container.webShortcutStore.add(
             WebShortcut(label = label, url = "shortcut://${info.`package`}/${info.id}")
         )
-        viewModel.reloadItems(viewModel.uiState.value.iconMode, viewModel.uiState.value.backgroundColorId)
+        viewModel.reloadItems(viewModel.uiState.value.iconMode)
     }
 
     private fun handleDrawerAction(item: LaunchableItem, action: DrawerItemAction) {
@@ -123,7 +125,7 @@ class MainActivity : ComponentActivity() {
                     container.webShortcutStore.all().firstOrNull { it.url == url }?.let {
                         container.webShortcutStore.remove(it.id)
                     }
-                    viewModel.reloadItems(viewModel.uiState.value.iconMode, viewModel.uiState.value.backgroundColorId)
+                    viewModel.reloadItems(viewModel.uiState.value.iconMode)
                 }
             }
             DrawerItemAction.ADD_TO_FOLDER -> {
@@ -160,6 +162,30 @@ class MainActivity : ComponentActivity() {
         }
         runCatching { startActivity(intent) }
     }
+
+    /** Opens the default clock app (so the user can set time/alarms). */
+    fun openClockApp() {
+        val showAlarms = Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        if (showAlarms.resolveActivity(packageManager) != null) {
+            runCatching { startActivity(showAlarms) }
+        } else {
+            runCatching { startActivity(Intent(Settings.ACTION_DATE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }) }
+        }
+    }
+
+    /** Opens the calendar app at today's date. */
+    fun openCalendarApp() {
+        val builder = android.provider.CalendarContract.CONTENT_URI.buildUpon().appendPath("time")
+        android.content.ContentUris.appendId(builder, System.currentTimeMillis())
+        val intent = Intent(Intent.ACTION_VIEW, builder.build()).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+        if (intent.resolveActivity(packageManager) != null) {
+            runCatching { startActivity(intent) }
+        } else {
+            runCatching { startActivity(Intent(Settings.ACTION_DATE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }) }
+        }
+    }
 }
 
 private fun LaunchableItem.toHomeEntry(): HomeEntry = when (type) {
@@ -180,7 +206,9 @@ private fun LaunchableItem.toHomeEntry(): HomeEntry = when (type) {
 private sealed class Overlay {
     data object None : Overlay()
     data object Settings : Overlay()
+    data object ClockSettings : Overlay()
     data class FolderEditor(val folder: Folder?) : Overlay()
+    data class FolderView(val folderId: String) : Overlay()
     data class Note(val widgetId: String, val page: Int) : Overlay()
 }
 
@@ -238,17 +266,18 @@ private fun EnfoqueRoot(
                 launcherName = uiState.launcherName,
                 layout = uiState.homeLayout,
                 items = items,
+                clock24h = uiState.clock24h,
+                showSeconds = uiState.showSeconds,
+                arcBattery = uiState.arcBattery,
                 onItemClick = onLaunch,
-                onFolderClick = { folder -> overlay = Overlay.FolderEditor(folder) },
-                onItemLongClick = { entry ->
-                    if (entry is HomeEntry.FolderRef) {
-                        uiState.homeLayout.folders.firstOrNull { it.id == entry.id }?.let {
-                            overlay = Overlay.FolderEditor(it)
-                        }
-                    } else {
-                        viewModel.removeEntryFromHome(entry.id)
-                    }
-                },
+                onFolderOpen = { folder -> overlay = Overlay.FolderView(folder.id) },
+                onFolderEdit = { folder -> overlay = Overlay.FolderEditor(folder) },
+                onRemoveFromHome = { entryId -> viewModel.removeEntryFromHome(entryId) },
+                onUninstall = { pkg -> viewModel.requestUninstall(pkg) },
+                onAppInfo = { pkg -> viewModel.openAppInfo(pkg) },
+                onClickTime = { activity.openClockApp() },
+                onClickDate = { activity.openCalendarApp() },
+                onClockLongPress = { overlay = Overlay.ClockSettings },
                 onOpenPhone = onOpenPhone,
                 onOpenCamera = onOpenCamera,
             )
@@ -273,12 +302,46 @@ private fun EnfoqueRoot(
                 iconMode = uiState.iconMode,
                 backgroundColorId = uiState.backgroundColorId,
                 launcherName = uiState.launcherName,
+                clock24h = uiState.clock24h,
+                showSeconds = uiState.showSeconds,
+                arcBattery = uiState.arcBattery,
+                showRecentApps = uiState.showRecentApps,
                 onIconModeChange = viewModel::setIconMode,
                 onBackgroundColorChange = viewModel::setBackgroundColorId,
                 onLauncherNameChange = viewModel::setLauncherName,
+                onClock24hChange = viewModel::setClock24h,
+                onShowSecondsChange = viewModel::setShowSeconds,
+                onArcBatteryChange = viewModel::setArcBattery,
+                onShowRecentAppsChange = viewModel::setShowRecentApps,
                 onSetDefaultLauncher = onSetDefaultLauncher,
                 onBack = { overlay = Overlay.None },
             )
+        }
+
+        Overlay.ClockSettings -> ClockSettingsDialog(
+            clock24h = uiState.clock24h,
+            showSeconds = uiState.showSeconds,
+            arcBattery = uiState.arcBattery,
+            onClock24hChange = viewModel::setClock24h,
+            onShowSecondsChange = viewModel::setShowSeconds,
+            onArcBatteryChange = viewModel::setArcBattery,
+            onMoreSettings = { overlay = Overlay.Settings },
+            onDismiss = { overlay = Overlay.None },
+        )
+
+        is Overlay.FolderView -> {
+            val folder = uiState.homeLayout.folders.firstOrNull { it.id == current.folderId }
+            if (folder == null) {
+                overlay = Overlay.None
+            } else {
+                FolderViewDialog(
+                    folder = folder,
+                    items = items,
+                    onLaunch = onLaunch,
+                    onEdit = { overlay = Overlay.FolderEditor(folder) },
+                    onDismiss = { overlay = Overlay.None },
+                )
+            }
         }
 
         is Overlay.FolderEditor -> {

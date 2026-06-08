@@ -45,9 +45,17 @@ fun SettingsScreen(
     iconMode: IconMode,
     backgroundColorId: String,
     launcherName: String,
+    clock24h: Boolean,
+    showSeconds: Boolean,
+    arcBattery: Boolean,
+    showRecentApps: Boolean,
     onIconModeChange: (IconMode) -> Unit,
     onBackgroundColorChange: (String) -> Unit,
     onLauncherNameChange: (String) -> Unit,
+    onClock24hChange: (Boolean) -> Unit,
+    onShowSecondsChange: (Boolean) -> Unit,
+    onArcBatteryChange: (Boolean) -> Unit,
+    onShowRecentAppsChange: (Boolean) -> Unit,
     onSetDefaultLauncher: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -72,7 +80,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(28.dp))
 
         /* ---------- Launcher name ---------- */
-        SectionTitle("Nombre del launcher")
+        SectionTitle("Nombre en la pantalla de inicio")
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -87,8 +95,33 @@ fun SettingsScreen(
                 textStyle = TextStyle(color = colors.content, fontSize = 16.sp),
                 cursorBrush = SolidColor(colors.content),
                 modifier = Modifier.fillMaxWidth(),
+                decorationBox = { inner ->
+                    if (launcherName.isEmpty()) {
+                        Text("(sin texto)", color = colors.secondaryContent)
+                    }
+                    inner()
+                },
             )
         }
+        Text(
+            "Déjalo vacío para no mostrar ningún texto.",
+            color = colors.secondaryContent,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Spacer(Modifier.height(28.dp))
+
+        /* ---------- Clock ---------- */
+        SectionTitle("Reloj")
+        SwitchRow("Formato 24 horas", clock24h, onClock24hChange)
+        SwitchRow("Mostrar segundos", showSeconds, onShowSecondsChange)
+        SwitchRow("El círculo muestra la batería", arcBattery, onArcBatteryChange)
+        Text(
+            "Consejo: mantén pulsado el círculo del reloj para abrir estos ajustes rápidamente.",
+            color = colors.secondaryContent,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(top = 4.dp),
+        )
         Spacer(Modifier.height(28.dp))
 
         /* ---------- Icon mode ---------- */
@@ -113,6 +146,11 @@ fun SettingsScreen(
                 modifier = Modifier.weight(1f),
             )
         }
+        Spacer(Modifier.height(28.dp))
+
+        /* ---------- App drawer ---------- */
+        SectionTitle("Cajón de aplicaciones")
+        SwitchRow("Mostrar \"Instaladas recientemente\"", showRecentApps, onShowRecentAppsChange)
         Spacer(Modifier.height(28.dp))
 
         /* ---------- Background color ---------- */
@@ -143,6 +181,84 @@ fun SettingsScreen(
             Text("Establecer como pantalla de inicio", color = colors.content)
         }
         Spacer(Modifier.height(48.dp))
+    }
+}
+
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colors = LocalEnfoqueColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = colors.content, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        // Minimalist toggle: outlined pill with a filled knob.
+        Box(
+            modifier = Modifier
+                .width(46.dp)
+                .height(26.dp)
+                .clip(RoundedCornerShape(50))
+                .border(1.dp, colors.stroke, RoundedCornerShape(50))
+                .then(if (checked) Modifier.background(colors.subtleFill) else Modifier),
+            contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(if (checked) colors.content else colors.secondaryContent),
+            )
+        }
+    }
+}
+
+/**
+ * Quick clock-appearance dialog, opened by long-pressing the home-screen clock.
+ */
+@Composable
+fun ClockSettingsDialog(
+    clock24h: Boolean,
+    showSeconds: Boolean,
+    arcBattery: Boolean,
+    onClock24hChange: (Boolean) -> Unit,
+    onShowSecondsChange: (Boolean) -> Unit,
+    onArcBatteryChange: (Boolean) -> Unit,
+    onMoreSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = LocalEnfoqueColors.current
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(colors.background)
+                .border(1.dp, colors.stroke, RoundedCornerShape(20.dp))
+                .padding(20.dp),
+        ) {
+            Column {
+                Text("Aspecto del reloj", color = colors.content, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(8.dp))
+                SwitchRow("Formato 24 horas", clock24h, onClock24hChange)
+                SwitchRow("Mostrar segundos", showSeconds, onShowSecondsChange)
+                SwitchRow("El círculo muestra la batería", arcBattery, onArcBatteryChange)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Más ajustes",
+                    color = colors.content,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(colors.subtleFill)
+                        .clickable { onMoreSettings() }
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                )
+            }
+        }
     }
 }
 
