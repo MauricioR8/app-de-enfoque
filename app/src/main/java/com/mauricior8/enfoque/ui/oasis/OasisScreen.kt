@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -148,22 +151,21 @@ private fun SquareControlBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         androidx.compose.material3.Icon(
-            if (pinned) androidx.compose.material.icons.Icons.Filled.PushPin
-            else androidx.compose.material.icons.Icons.Outlined.PushPin,
+            Icons.Outlined.PushPin,
             contentDescription = if (pinned) "Desfijar" else "Fijar",
-            tint = colors.content,
+            tint = if (pinned) colors.content else colors.content.copy(alpha = 0.4f),
             modifier = Modifier.size(20.dp).clickable { onPin() },
         )
         Spacer(Modifier.width(14.dp))
         androidx.compose.material3.Icon(
-            androidx.compose.material.icons.Icons.Outlined.KeyboardArrowUp,
+            Icons.Outlined.KeyboardArrowUp,
             contentDescription = "Subir",
             tint = if (canMoveUp) colors.content else colors.content.copy(alpha = 0.25f),
             modifier = Modifier.size(24.dp).clickable(enabled = canMoveUp) { onMoveUp() },
         )
         Spacer(Modifier.width(8.dp))
         androidx.compose.material3.Icon(
-            androidx.compose.material.icons.Icons.Outlined.KeyboardArrowDown,
+            Icons.Outlined.KeyboardArrowDown,
             contentDescription = "Bajar",
             tint = if (canMoveDown) colors.content else colors.content.copy(alpha = 0.25f),
             modifier = Modifier.size(24.dp).clickable(enabled = canMoveDown) { onMoveDown() },
