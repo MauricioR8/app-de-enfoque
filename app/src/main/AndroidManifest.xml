@@ -13,6 +13,11 @@
     <!-- Read events from the device calendar (Google/Samsung accounts) -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!-- Access gallery images for custom app icons / folder images -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <!-- Expand the status bar / allow setting wallpaper info if needed -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 

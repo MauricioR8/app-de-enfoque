@@ -37,6 +37,7 @@ data class EnfoqueUiState(
     val showSeconds: Boolean = false,
     val arcBattery: Boolean = true,
     val showRecentApps: Boolean = true,
+    val customIcons: Map<String, String> = emptyMap(),
 ) {
     val backgroundColor get() = BackgroundPalette.fromId(backgroundColorId).color
     val isDarkBackground get() = backgroundColor.luminance() < 0.5f
@@ -79,7 +80,7 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
         prefs.showRecentApps,
     ) { c24, secs, arc, recent -> DisplayPrefs(c24, secs, arc, recent) }
 
-    val uiState: StateFlow<EnfoqueUiState> = combine(coreFlow, displayFlow) { core, display ->
+    val uiState: StateFlow<EnfoqueUiState> = combine(coreFlow, displayFlow, prefs.customIcons) { core, display, icons ->
         EnfoqueUiState(
             iconMode = core.iconMode,
             backgroundColorId = core.bgId,
@@ -90,6 +91,7 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
             showSeconds = display.showSeconds,
             arcBattery = display.arcBattery,
             showRecentApps = display.showRecent,
+            customIcons = icons,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), EnfoqueUiState())
 
@@ -100,11 +102,11 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading
 
-    /** Reloads the app/shortcut list using the current icon mode. */
-    fun reloadItems(iconMode: IconMode) {
+    /** Reloads the app/shortcut list using the current icon mode + custom icons. */
+    fun reloadItems(iconMode: IconMode, customIcons: Map<String, String> = uiState.value.customIcons) {
         viewModelScope.launch {
             _loading.value = true
-            _items.value = appRepository.loadItems(iconMode)
+            _items.value = appRepository.loadItems(iconMode, customIcons)
             _loading.value = false
         }
     }
@@ -112,6 +114,16 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     fun launch(item: LaunchableItem) = appRepository.launch(item)
     fun openAppInfo(pkg: String) = appRepository.openAppInfo(pkg)
     fun requestUninstall(pkg: String) = appRepository.requestUninstall(pkg)
+
+    fun setCustomIcon(key: String, path: String) = viewModelScope.launch {
+        prefs.setCustomIcon(key, path)
+        reloadItems(uiState.value.iconMode, uiState.value.customIcons + (key to path))
+    }
+
+    fun removeCustomIcon(key: String) = viewModelScope.launch {
+        prefs.removeCustomIcon(key)
+        reloadItems(uiState.value.iconMode, uiState.value.customIcons - key)
+    }
 
     /* ----------------------- Settings actions ----------------------- */
 
@@ -177,6 +189,60 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     fun removeWidget(widgetId: String) {
         val current = uiState.value.oasisBoard
         updateOasisBoard(current.copy(widgets = current.widgets.filterNot { it.id == widgetId }))
+    }
+
+    /** Toggles the "pinned" (favorite) flag of a square. */
+    fun toggleWidgetPin(widgetId: String) {
+        val current = uiState.value.oasisBoard
+        updateOasisBoard(
+            current.copy(widgets = current.widgets.map {
+                if (it.id == widgetId) it.copy(favorite = !it.favorite) else it
+            })
+        )
+    }
+
+    /** Moves a square up (-1) or down (+1) in the saved order. */
+    fun moveWidget(widgetId: String, direction: Int) {
+        val current = uiState.value.oasisBoard
+        val list = current.widgets.toMutableList()
+        val index = list.indexOfFirst { it.id == widgetId }
+        if (index < 0) return
+        val target = index + direction
+        if (target < 0 || target >= list.size) return
+        val tmp = list[index]
+        list[index] = list[target]
+        list[target] = tmp
+        updateOasisBoard(current.copy(widgets = list))
+    }
+
+    /** Widget types that may only exist once on the board. */
+    private val uniqueTypes = setOf(
+        com.mauricior8.enfoque.data.model.WidgetType.MUSIC,
+        com.mauricior8.enfoque.data.model.WidgetType.APP_USAGE,
+    )
+
+    /**
+     * Adds a square of [type] unless it is a unique type already present.
+     * Returns false if it was blocked as a duplicate.
+     */
+    fun addWidget(type: com.mauricior8.enfoque.data.model.WidgetType, title: String): Boolean {
+        val current = uiState.value.oasisBoard
+        if (type in uniqueTypes && current.widgets.any { it.type == type }) return false
+        updateOasisBoard(current.copy(widgets = current.widgets + WidgetConfig(type = type, title = title)))
+        return true
+    }
+
+    /** True if a unique-type square can still be added. */
+    fun canAddWidget(type: com.mauricior8.enfoque.data.model.WidgetType): Boolean {
+        if (type !in uniqueTypes) return true
+        return uiState.value.oasisBoard.widgets.none { it.type == type }
+    }
+
+    /* ----------------------- Home progress bar ----------------------- */
+
+    fun setHomeProgress(span: com.mauricior8.enfoque.data.model.ProgressSpan) {
+        val current = uiState.value.homeLayout
+        updateHomeLayout(current.copy(homeProgress = span.name))
     }
 
     companion object {

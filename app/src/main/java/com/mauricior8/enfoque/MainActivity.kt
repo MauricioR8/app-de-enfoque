@@ -66,9 +66,9 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsState()
             val items by viewModel.items.collectAsState()
 
-            // Re-render icons whenever the icon mode changes.
-            LaunchedEffect(uiState.iconMode) {
-                viewModel.reloadItems(uiState.iconMode)
+            // Re-render icons whenever the icon mode or custom icons change.
+            LaunchedEffect(uiState.iconMode, uiState.customIcons) {
+                viewModel.reloadItems(uiState.iconMode, uiState.customIcons)
             }
 
             AppDeEnfoqueTheme(backgroundColor = uiState.backgroundColor) {
@@ -120,6 +120,8 @@ class MainActivity : ComponentActivity() {
             DrawerItemAction.ADD_TO_HOME -> viewModel.addEntryToHome(item.toHomeEntry())
             DrawerItemAction.APP_INFO -> item.packageName?.let(viewModel::openAppInfo)
             DrawerItemAction.UNINSTALL -> item.packageName?.let(viewModel::requestUninstall)
+            DrawerItemAction.CHANGE_ICON -> pendingIconKey = item.key
+            DrawerItemAction.RESET_ICON -> viewModel.removeCustomIcon(item.key)
             DrawerItemAction.REMOVE_SHORTCUT -> {
                 item.url?.let { url ->
                     container.webShortcutStore.all().firstOrNull { it.url == url }?.let {
@@ -135,8 +137,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Bridge for "add to folder" requests coming from the drawer menu.
+    // Bridges for requests coming from the drawer menu.
     var pendingFolderItemKey: String? by mutableStateOf(null)
+    var pendingIconKey: String? by mutableStateOf(null)
 
     private fun openPhone() {
         runCatching {
@@ -207,6 +210,7 @@ private sealed class Overlay {
     data object None : Overlay()
     data object Settings : Overlay()
     data object ClockSettings : Overlay()
+    data object IconEditor : Overlay()
     data class FolderEditor(val folder: Folder?) : Overlay()
     data class FolderView(val folderId: String) : Overlay()
     data class Note(val widgetId: String, val page: Int) : Overlay()
@@ -228,6 +232,10 @@ private fun EnfoqueRoot(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var overlay by remember { mutableStateOf<Overlay>(Overlay.None) }
     var pendingImagePath by remember { mutableStateOf<String?>(null) }
+
+    // Custom icon editing state.
+    var iconKeyForEdit by remember { mutableStateOf<String?>(null) }
+    var pendingIconUri by remember { mutableStateOf<Uri?>(null) }
 
     // React to "add to folder" requests from the drawer menu.
     LaunchedEffect(activity.pendingFolderItemKey) {
@@ -251,6 +259,32 @@ private fun EnfoqueRoot(
         }
     }
 
+    // Picker used for custom app icons (opens the mini editor afterwards).
+    val iconImagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            pendingIconUri = uri
+            overlay = Overlay.IconEditor
+        } else {
+            iconKeyForEdit = null
+        }
+    }
+
+    val startIconChange: (String) -> Unit = { key ->
+        iconKeyForEdit = key
+        iconImagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    // React to "change icon" requests from the drawer menu.
+    LaunchedEffect(activity.pendingIconKey) {
+        val key = activity.pendingIconKey
+        if (key != null) {
+            activity.pendingIconKey = null
+            startIconChange(key)
+        }
+    }
+
     val pagerState = rememberPagerState(initialPage = 1) { 3 }
 
     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
@@ -259,8 +293,11 @@ private fun EnfoqueRoot(
                 board = uiState.oasisBoard,
                 onWidgetChange = viewModel::upsertWidget,
                 onWidgetRemove = viewModel::removeWidget,
-                onAddWidget = { type -> viewModel.upsertWidget(WidgetConfig(type = type, title = defaultTitle(type))) },
+                onAddWidget = { type -> viewModel.addWidget(type, defaultTitle(type)) },
                 onExpandNote = { config, pageIndex -> overlay = Overlay.Note(config.id, pageIndex) },
+                onPin = { id -> viewModel.toggleWidgetPin(id) },
+                onMove = { id, dir -> viewModel.moveWidget(id, dir) },
+                canAdd = { type -> viewModel.canAddWidget(type) },
             )
             1 -> HomeScreen(
                 launcherName = uiState.launcherName,
@@ -275,9 +312,12 @@ private fun EnfoqueRoot(
                 onRemoveFromHome = { entryId -> viewModel.removeEntryFromHome(entryId) },
                 onUninstall = { pkg -> viewModel.requestUninstall(pkg) },
                 onAppInfo = { pkg -> viewModel.openAppInfo(pkg) },
+                onChangeIcon = { key -> startIconChange(key) },
+                onResetIcon = { key -> viewModel.removeCustomIcon(key) },
                 onClickTime = { activity.openClockApp() },
                 onClickDate = { activity.openCalendarApp() },
                 onClockLongPress = { overlay = Overlay.ClockSettings },
+                onSetProgress = { span -> viewModel.setHomeProgress(span) },
                 onOpenPhone = onOpenPhone,
                 onOpenCamera = onOpenCamera,
             )
@@ -296,6 +336,34 @@ private fun EnfoqueRoot(
 
     when (val current = overlay) {
         Overlay.None -> Unit
+
+        Overlay.IconEditor -> {
+            val uri = pendingIconUri
+            val key = iconKeyForEdit
+            if (uri == null || key == null) {
+                overlay = Overlay.None
+            } else {
+                com.mauricior8.enfoque.ui.components.IconEditorDialog(
+                    imageUri = uri,
+                    onConfirm = { boxPx, scale, tx, ty ->
+                        scope.launch {
+                            val path = withContext(Dispatchers.IO) {
+                                ImageStorage.saveAdjusted(activity, uri, boxPx, scale, tx, ty, UUID.randomUUID().toString())
+                            }
+                            if (path != null) viewModel.setCustomIcon(key, path)
+                            pendingIconUri = null
+                            iconKeyForEdit = null
+                            overlay = Overlay.None
+                        }
+                    },
+                    onCancel = {
+                        pendingIconUri = null
+                        iconKeyForEdit = null
+                        overlay = Overlay.None
+                    },
+                )
+            }
+        }
 
         Overlay.Settings -> FullScreenOverlay(uiState) {
             SettingsScreen(

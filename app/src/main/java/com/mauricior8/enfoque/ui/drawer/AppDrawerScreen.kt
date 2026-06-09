@@ -51,7 +51,7 @@ import com.mauricior8.enfoque.ui.theme.LocalEnfoqueColors
 import kotlinx.coroutines.launch
 
 /** Action chosen from an app's long-press menu. */
-enum class DrawerItemAction { ADD_TO_HOME, ADD_TO_FOLDER, APP_INFO, UNINSTALL, REMOVE_SHORTCUT }
+enum class DrawerItemAction { ADD_TO_HOME, ADD_TO_FOLDER, CHANGE_ICON, RESET_ICON, APP_INFO, UNINSTALL, REMOVE_SHORTCUT }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -239,6 +239,14 @@ private fun AppRow(
             DropdownMenuItem(
                 text = { Text("Añadir a una carpeta") },
                 onClick = { menuOpen = false; onAction(DrawerItemAction.ADD_TO_FOLDER) },
+            )
+            DropdownMenuItem(
+                text = { Text("Cambiar imagen del icono") },
+                onClick = { menuOpen = false; onAction(DrawerItemAction.CHANGE_ICON) },
+            )
+            DropdownMenuItem(
+                text = { Text("Restaurar icono original") },
+                onClick = { menuOpen = false; onAction(DrawerItemAction.RESET_ICON) },
             )
             if (item.type == LaunchableItem.Type.APP) {
                 DropdownMenuItem(

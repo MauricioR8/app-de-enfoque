@@ -51,4 +51,54 @@ object ImageStorage {
         if (path.isNullOrBlank()) return
         runCatching { File(path).takeIf { it.exists() }?.delete() }
     }
+
+    /**
+     * Saves an image transformed exactly like the icon mini-editor preview:
+     * the source is fit-centered inside a square viewport of [boxPx] pixels, then
+     * scaled by [scale] around the center and translated by ([txPx], [tyPx]).
+     * Produces a [TARGET_SIZE] square PNG. Returns the path or null.
+     */
+    fun saveAdjusted(
+        context: Context,
+        source: Uri,
+        boxPx: Float,
+        scale: Float,
+        txPx: Float,
+        tyPx: Float,
+        name: String,
+    ): String? {
+        return try {
+            val bmp = context.contentResolver.openInputStream(source).use { input ->
+                BitmapFactory.decodeStream(input)
+            } ?: return null
+
+            val out = TARGET_SIZE
+            val ratio = out / boxPx
+            val fitScale = minOf(boxPx / bmp.width, boxPx / bmp.height)
+            val dx0 = (boxPx - bmp.width * fitScale) / 2f
+            val dy0 = (boxPx - bmp.height * fitScale) / 2f
+
+            val matrix = android.graphics.Matrix().apply {
+                postScale(fitScale, fitScale)
+                postTranslate(dx0, dy0)
+                postTranslate(-boxPx / 2f, -boxPx / 2f)
+                postScale(scale, scale)
+                postTranslate(boxPx / 2f, boxPx / 2f)
+                postTranslate(txPx, tyPx)
+                postScale(ratio, ratio)
+            }
+
+            val output = Bitmap.createBitmap(out, out, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(output)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
+            canvas.drawBitmap(bmp, matrix, paint)
+
+            val dir = File(context.filesDir, "custom_icons").apply { mkdirs() }
+            val file = File(dir, "$name.png")
+            FileOutputStream(file).use { out2 -> output.compress(Bitmap.CompressFormat.PNG, 100, out2) }
+            file.absolutePath
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

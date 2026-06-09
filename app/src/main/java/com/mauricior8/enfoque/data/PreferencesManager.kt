@@ -39,6 +39,34 @@ class PreferencesManager(private val context: Context) {
         val SHOW_SECONDS = booleanPreferencesKey("show_seconds")
         val ARC_BATTERY = booleanPreferencesKey("arc_battery")
         val SHOW_RECENT = booleanPreferencesKey("show_recent")
+        val CUSTOM_ICONS = stringPreferencesKey("custom_icons_json")
+    }
+
+    /* ------------------------- Custom icons ------------------------- */
+
+    /** Map of item key (package/activity or web/id) -> local image file path. */
+    val customIcons: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.CUSTOM_ICONS]?.let {
+            runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull()
+        } ?: emptyMap()
+    }
+
+    suspend fun setCustomIcon(key: String, path: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.CUSTOM_ICONS]?.let {
+                runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull()
+            } ?: emptyMap()
+            prefs[Keys.CUSTOM_ICONS] = json.encodeToString(current + (key to path))
+        }
+    }
+
+    suspend fun removeCustomIcon(key: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.CUSTOM_ICONS]?.let {
+                runCatching { json.decodeFromString<Map<String, String>>(it) }.getOrNull()
+            } ?: emptyMap()
+            prefs[Keys.CUSTOM_ICONS] = json.encodeToString(current - key)
+        }
     }
 
     /* ------------------------- Icon mode ------------------------- */

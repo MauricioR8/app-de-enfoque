@@ -97,11 +97,19 @@ data class Folder(
     }
 }
 
+/** Which time span the single home-screen progress bar shows ("none" hides it). */
+enum class ProgressSpan { NONE, DAY, WEEK, MONTH, YEAR }
+
 @Serializable
 data class HomeLayout(
     val entries: List<HomeEntry> = emptyList(),
     val folders: List<Folder> = emptyList(),
-)
+    /** Stored as the enum name; defaults to the day progress bar. */
+    val homeProgress: String = "DAY",
+) {
+    val progressSpan: ProgressSpan
+        get() = runCatching { ProgressSpan.valueOf(homeProgress) }.getOrDefault(ProgressSpan.DAY)
+}
 
 /* ----------------------------------------------------------------------------
  * Oasis widgets

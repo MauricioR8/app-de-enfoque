@@ -22,15 +22,16 @@ class AppRepository(private val context: Context) {
 
     /**
      * @param iconMode how to render icons (color or grayscale).
+     * @param customIcons map of item key -> custom image file path (overrides).
      */
-    suspend fun loadItems(iconMode: IconMode): List<LaunchableItem> =
+    suspend fun loadItems(iconMode: IconMode, customIcons: Map<String, String> = emptyMap()): List<LaunchableItem> =
         withContext(Dispatchers.IO) {
-            val apps = loadInstalledApps(iconMode)
-            val web = loadWebShortcuts(iconMode)
+            val apps = loadInstalledApps(iconMode, customIcons)
+            val web = loadWebShortcuts(iconMode, customIcons)
             (apps + web).sortedBy { it.sortKey.lowercase() }
         }
 
-    private fun loadInstalledApps(iconMode: IconMode): List<LaunchableItem> {
+    private fun loadInstalledApps(iconMode: IconMode, customIcons: Map<String, String>): List<LaunchableItem> {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolveInfos = pm.queryIntentActivities(intent, 0)
         val myPackage = context.packageName
@@ -41,15 +42,17 @@ class AppRepository(private val context: Context) {
             // Hide our own launcher from the drawer.
             if (packageName == myPackage) return@mapNotNull null
 
+            val key = "$packageName/${activityInfo.name}"
             val label = info.loadLabel(pm)?.toString().orEmpty()
-            val rawIcon = runCatching { info.loadIcon(pm) }.getOrNull()
+            val customRaw = customIcons[key]?.let { loadDrawableFromPath(it) }
+            val rawIcon = customRaw ?: runCatching { info.loadIcon(pm) }.getOrNull()
             val icon = renderIcon(rawIcon, iconMode)
             val firstInstall = runCatching {
                 pm.getPackageInfo(packageName, 0).firstInstallTime
             }.getOrDefault(0L)
 
             LaunchableItem(
-                key = "$packageName/${activityInfo.name}",
+                key = key,
                 label = label,
                 icon = icon,
                 type = LaunchableItem.Type.APP,
@@ -60,13 +63,20 @@ class AppRepository(private val context: Context) {
         }
     }
 
-    private fun loadWebShortcuts(iconMode: IconMode): List<LaunchableItem> {
+    private fun loadDrawableFromPath(path: String): android.graphics.drawable.Drawable? =
+        runCatching {
+            if (java.io.File(path).exists()) android.graphics.drawable.Drawable.createFromPath(path) else null
+        }.getOrNull()
+
+    private fun loadWebShortcuts(iconMode: IconMode, customIcons: Map<String, String>): List<LaunchableItem> {
         return webStore.all().map { ws ->
-            val rawIcon = ws.iconPath?.let { path ->
+            val key = "web/${ws.id}"
+            val custom = customIcons[key]?.let { loadDrawableFromPath(it) }
+            val rawIcon = custom ?: ws.iconPath?.let { path ->
                 runCatching { android.graphics.drawable.Drawable.createFromPath(path) }.getOrNull()
             }
             LaunchableItem(
-                key = "web/${ws.id}",
+                key = key,
                 label = ws.label,
                 icon = rawIcon?.let { renderIcon(it, iconMode) },
                 type = LaunchableItem.Type.WEB_SHORTCUT,

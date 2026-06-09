@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -51,13 +52,16 @@ fun OasisScreen(
     onWidgetRemove: (String) -> Unit,
     onAddWidget: (WidgetType) -> Unit,
     onExpandNote: (WidgetConfig, Int) -> Unit,
+    onPin: (String) -> Unit,
+    onMove: (String, Int) -> Unit,
+    canAdd: (WidgetType) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalEnfoqueColors.current
-    var selectedTab by remember { mutableStateOf(1) } // 0 = Widgets, 1 = Oasis
+    var selectedTab by remember { mutableStateOf(1) } // 0 = Widgets, 1 = Squares
     var showAddDialog by remember { mutableStateOf(false) }
 
-    // Favorites first, then the rest in their saved order.
+    // Pinned squares first, keeping their saved relative order.
     val orderedWidgets = remember(board.widgets) {
         board.widgets.sortedByDescending { it.favorite }
     }
@@ -77,7 +81,7 @@ fun OasisScreen(
         }
 
         if (selectedTab == 0) {
-            WidgetsCatalogTab(onAddWidget = onAddWidget)
+            WidgetsCatalogTab(onAddWidget = onAddWidget, canAdd = canAdd)
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -85,13 +89,23 @@ fun OasisScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                items(orderedWidgets, key = { it.id }) { widget ->
-                    WidgetDispatcher(
-                        config = widget,
-                        onChange = onWidgetChange,
-                        onRemove = { onWidgetRemove(widget.id) },
-                        onExpandNote = onExpandNote,
-                    )
+                itemsIndexed(orderedWidgets, key = { _, w -> w.id }) { index, widget ->
+                    Column {
+                        SquareControlBar(
+                            pinned = widget.favorite,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < orderedWidgets.size - 1,
+                            onPin = { onPin(widget.id) },
+                            onMoveUp = { onMove(widget.id, -1) },
+                            onMoveDown = { onMove(widget.id, 1) },
+                        )
+                        WidgetDispatcher(
+                            config = widget,
+                            onChange = onWidgetChange,
+                            onRemove = { onWidgetRemove(widget.id) },
+                            onExpandNote = onExpandNote,
+                        )
+                    }
                 }
                 item {
                     Box(
@@ -108,11 +122,51 @@ fun OasisScreen(
 
     if (showAddDialog) {
         AddWidgetDialog(
+            canAdd = canAdd,
             onDismiss = { showAddDialog = false },
             onPick = { type ->
                 showAddDialog = false
                 onAddWidget(type)
             },
+        )
+    }
+}
+
+@Composable
+private fun SquareControlBar(
+    pinned: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onPin: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+) {
+    val colors = LocalEnfoqueColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.Icon(
+            if (pinned) androidx.compose.material.icons.Icons.Filled.PushPin
+            else androidx.compose.material.icons.Icons.Outlined.PushPin,
+            contentDescription = if (pinned) "Desfijar" else "Fijar",
+            tint = colors.content,
+            modifier = Modifier.size(20.dp).clickable { onPin() },
+        )
+        Spacer(Modifier.width(14.dp))
+        androidx.compose.material3.Icon(
+            androidx.compose.material.icons.Icons.Outlined.KeyboardArrowUp,
+            contentDescription = "Subir",
+            tint = if (canMoveUp) colors.content else colors.content.copy(alpha = 0.25f),
+            modifier = Modifier.size(24.dp).clickable(enabled = canMoveUp) { onMoveUp() },
+        )
+        Spacer(Modifier.width(8.dp))
+        androidx.compose.material3.Icon(
+            androidx.compose.material.icons.Icons.Outlined.KeyboardArrowDown,
+            contentDescription = "Bajar",
+            tint = if (canMoveDown) colors.content else colors.content.copy(alpha = 0.25f),
+            modifier = Modifier.size(24.dp).clickable(enabled = canMoveDown) { onMoveDown() },
         )
     }
 }
@@ -160,7 +214,7 @@ private fun WidgetDispatcher(
 }
 
 @Composable
-private fun WidgetsCatalogTab(onAddWidget: (WidgetType) -> Unit) {
+private fun WidgetsCatalogTab(onAddWidget: (WidgetType) -> Unit, canAdd: (WidgetType) -> Boolean) {
     val colors = LocalEnfoqueColors.current
     Column(
         modifier = Modifier
@@ -174,13 +228,18 @@ private fun WidgetsCatalogTab(onAddWidget: (WidgetType) -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
         )
         widgetCatalog().forEach { (type, label, description) ->
+            val enabled = canAdd(type)
             OasisCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onAddWidget(type) }
+                    .clickable(enabled = enabled) { onAddWidget(type) }
             ) {
                 Column {
-                    Text(label, color = colors.content, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (enabled) label else "$label (ya agregado)",
+                        color = if (enabled) colors.content else colors.secondaryContent,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     Spacer(Modifier.height(4.dp))
                     Text(description, color = colors.secondaryContent, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -190,7 +249,7 @@ private fun WidgetsCatalogTab(onAddWidget: (WidgetType) -> Unit) {
 }
 
 @Composable
-private fun AddWidgetDialog(onDismiss: () -> Unit, onPick: (WidgetType) -> Unit) {
+private fun AddWidgetDialog(canAdd: (WidgetType) -> Boolean, onDismiss: () -> Unit, onPick: (WidgetType) -> Unit) {
     val colors = LocalEnfoqueColors.current
     Dialog(onDismissRequest = onDismiss) {
         Box(
@@ -204,13 +263,14 @@ private fun AddWidgetDialog(onDismiss: () -> Unit, onPick: (WidgetType) -> Unit)
                     Text("Añadir widget", color = colors.content, style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(12.dp))
                     widgetCatalog().forEach { (type, label, _) ->
+                        val enabled = canAdd(type)
                         Text(
-                            text = label,
-                            color = colors.content,
+                            text = if (enabled) label else "$label (ya agregado)",
+                            color = if (enabled) colors.content else colors.secondaryContent,
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onPick(type) }
+                                .clickable(enabled = enabled) { onPick(type) }
                                 .padding(vertical = 12.dp),
                         )
                     }
