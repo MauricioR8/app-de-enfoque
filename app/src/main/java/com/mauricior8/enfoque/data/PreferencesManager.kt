@@ -38,6 +38,7 @@ class PreferencesManager(private val context: Context) {
         val CLOCK_24H = booleanPreferencesKey("clock_24h")
         val SHOW_SECONDS = booleanPreferencesKey("show_seconds")
         val ARC_BATTERY = booleanPreferencesKey("arc_battery")
+        val ARC_BATTERY_COLOR = booleanPreferencesKey("arc_battery_color")
         val SHOW_RECENT = booleanPreferencesKey("show_recent")
         val CUSTOM_ICONS = stringPreferencesKey("custom_icons_json")
     }
@@ -118,6 +119,12 @@ class PreferencesManager(private val context: Context) {
     val arcBattery: Flow<Boolean> = context.dataStore.data.map { it[Keys.ARC_BATTERY] ?: true }
     suspend fun setArcBattery(value: Boolean) {
         context.dataStore.edit { it[Keys.ARC_BATTERY] = value }
+    }
+
+    /** When true the clock arc is colored by battery level (green/amber/red). */
+    val arcBatteryColor: Flow<Boolean> = context.dataStore.data.map { it[Keys.ARC_BATTERY_COLOR] ?: false }
+    suspend fun setArcBatteryColor(value: Boolean) {
+        context.dataStore.edit { it[Keys.ARC_BATTERY_COLOR] = value }
     }
 
     val showRecentApps: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_RECENT] ?: true }

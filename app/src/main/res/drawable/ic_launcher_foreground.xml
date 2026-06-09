@@ -4,12 +4,13 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Minimalist incomplete arc, echoing the launcher home screen clock frame -->
+    <!-- Five-pointed star drawn in a single continuous stroke (pentagram),
+         like a star you draw without lifting the pencil. -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
+        android:strokeWidth="3"
         android:fillColor="#00000000"
         android:strokeLineCap="round"
-        android:pathData="M54,34
-            A20,20 0 1 1 39.86,39.86" />
+        android:strokeLineJoin="round"
+        android:pathData="M54,22 L74.6,85.4 L20.6,46.2 L87.4,46.2 L33.4,85.4 Z" />
 </vector>

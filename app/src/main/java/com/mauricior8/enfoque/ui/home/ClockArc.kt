@@ -46,6 +46,7 @@ fun ClockArc(
     clock24h: Boolean,
     showSeconds: Boolean,
     arcBattery: Boolean,
+    arcColorByBattery: Boolean,
     onClickTime: () -> Unit,
     onClickDate: () -> Unit,
     onLongPress: () -> Unit,
@@ -61,6 +62,14 @@ fun ClockArc(
     }
 
     val batteryFraction = rememberBatteryFraction()
+    // Optional battery-colored arc: green (high) -> amber (mid) -> red (low).
+    val arcColor = if (arcBattery && arcColorByBattery) {
+        when {
+            batteryFraction <= 0.20f -> androidx.compose.ui.graphics.Color(0xFFE53935)
+            batteryFraction <= 0.50f -> androidx.compose.ui.graphics.Color(0xFFFFB300)
+            else -> androidx.compose.ui.graphics.Color(0xFF43A047)
+        }
+    } else colors.content
 
     val timePattern = remember(clock24h, showSeconds) {
         val base = if (clock24h) "HH:mm" else "h:mm"
@@ -96,7 +105,7 @@ fun ClockArc(
                     style = stroke,
                 )
                 drawArc(
-                    color = colors.content,
+                    color = arcColor,
                     startAngle = -90f,
                     sweepAngle = 360f * batteryFraction.coerceIn(0.02f, 1f),
                     useCenter = false,

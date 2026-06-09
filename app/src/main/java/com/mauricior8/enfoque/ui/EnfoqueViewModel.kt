@@ -36,6 +36,7 @@ data class EnfoqueUiState(
     val clock24h: Boolean = true,
     val showSeconds: Boolean = false,
     val arcBattery: Boolean = true,
+    val arcBatteryColor: Boolean = false,
     val showRecentApps: Boolean = true,
     val customIcons: Map<String, String> = emptyMap(),
 ) {
@@ -62,6 +63,7 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
         val clock24h: Boolean,
         val showSeconds: Boolean,
         val arcBattery: Boolean,
+        val arcBatteryColor: Boolean,
         val showRecent: Boolean,
     )
 
@@ -77,8 +79,9 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
         prefs.clock24h,
         prefs.showSeconds,
         prefs.arcBattery,
+        prefs.arcBatteryColor,
         prefs.showRecentApps,
-    ) { c24, secs, arc, recent -> DisplayPrefs(c24, secs, arc, recent) }
+    ) { c24, secs, arc, arcColor, recent -> DisplayPrefs(c24, secs, arc, arcColor, recent) }
 
     val uiState: StateFlow<EnfoqueUiState> = combine(coreFlow, displayFlow, prefs.customIcons) { core, display, icons ->
         EnfoqueUiState(
@@ -90,6 +93,7 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
             clock24h = display.clock24h,
             showSeconds = display.showSeconds,
             arcBattery = display.arcBattery,
+            arcBatteryColor = display.arcBatteryColor,
             showRecentApps = display.showRecent,
             customIcons = icons,
         )
@@ -133,6 +137,7 @@ class EnfoqueViewModel(app: Application) : AndroidViewModel(app) {
     fun setClock24h(value: Boolean) = viewModelScope.launch { prefs.setClock24h(value) }
     fun setShowSeconds(value: Boolean) = viewModelScope.launch { prefs.setShowSeconds(value) }
     fun setArcBattery(value: Boolean) = viewModelScope.launch { prefs.setArcBattery(value) }
+    fun setArcBatteryColor(value: Boolean) = viewModelScope.launch { prefs.setArcBatteryColor(value) }
     fun setShowRecentApps(value: Boolean) = viewModelScope.launch { prefs.setShowRecentApps(value) }
 
     /* ----------------------- Home layout actions ----------------------- */

@@ -48,14 +48,18 @@ fun SettingsScreen(
     clock24h: Boolean,
     showSeconds: Boolean,
     arcBattery: Boolean,
+    arcBatteryColor: Boolean,
     showRecentApps: Boolean,
+    homeProgress: com.mauricior8.enfoque.data.model.ProgressSpan,
     onIconModeChange: (IconMode) -> Unit,
     onBackgroundColorChange: (String) -> Unit,
     onLauncherNameChange: (String) -> Unit,
     onClock24hChange: (Boolean) -> Unit,
     onShowSecondsChange: (Boolean) -> Unit,
     onArcBatteryChange: (Boolean) -> Unit,
+    onArcBatteryColorChange: (Boolean) -> Unit,
     onShowRecentAppsChange: (Boolean) -> Unit,
+    onHomeProgressChange: (com.mauricior8.enfoque.data.model.ProgressSpan) -> Unit,
     onSetDefaultLauncher: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -116,12 +120,40 @@ fun SettingsScreen(
         SwitchRow("Formato 24 horas", clock24h, onClock24hChange)
         SwitchRow("Mostrar segundos", showSeconds, onShowSecondsChange)
         SwitchRow("El círculo muestra la batería", arcBattery, onArcBatteryChange)
+        SwitchRow("Colorear el círculo según la batería", arcBatteryColor, onArcBatteryColorChange)
         Text(
             "Consejo: mantén pulsado el círculo del reloj para abrir estos ajustes rápidamente.",
             color = colors.secondaryContent,
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(top = 4.dp),
         )
+        Spacer(Modifier.height(28.dp))
+
+        /* ---------- Home progress bar ---------- */
+        SectionTitle("Barra de progreso en inicio")
+        Text(
+            "Muestra una barra de progreso bajo el reloj. También puedes mantenerla pulsada en el inicio.",
+            color = colors.secondaryContent,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(12.dp))
+        val spans = com.mauricior8.enfoque.data.model.ProgressSpan.values()
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            spans.toList().chunked(3).forEach { rowSpans ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowSpans.forEach { span ->
+                        ChoiceChip(
+                            label = progressLabel(span),
+                            selected = homeProgress == span,
+                            onClick = { onHomeProgressChange(span) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    // Pad the last row so chips keep equal width.
+                    repeat(3 - rowSpans.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
         Spacer(Modifier.height(28.dp))
 
         /* ---------- Icon mode ---------- */
@@ -260,6 +292,14 @@ fun ClockSettingsDialog(
             }
         }
     }
+}
+
+private fun progressLabel(span: com.mauricior8.enfoque.data.model.ProgressSpan): String = when (span) {
+    com.mauricior8.enfoque.data.model.ProgressSpan.NONE -> "Ninguna"
+    com.mauricior8.enfoque.data.model.ProgressSpan.DAY -> "Día"
+    com.mauricior8.enfoque.data.model.ProgressSpan.WEEK -> "Semana"
+    com.mauricior8.enfoque.data.model.ProgressSpan.MONTH -> "Mes"
+    com.mauricior8.enfoque.data.model.ProgressSpan.YEAR -> "Año"
 }
 
 @Composable
